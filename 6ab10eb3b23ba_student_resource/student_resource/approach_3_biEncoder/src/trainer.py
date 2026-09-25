@@ -4,10 +4,22 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from sentence_transformers import SentenceTransformer, losses
 
-from ..config import path_config, model_config
-from .dataset import BiEncoderPairDataset
-from .model import build_bi_encoder_model, build_mnr_loss_function
-from .s3_utils import upload_file_to_s3
+try:
+    from approach_3_biEncoder.config import path_config, model_config
+    from approach_3_biEncoder.src.dataset import BiEncoderPairDataset
+    from approach_3_biEncoder.src.model import build_bi_encoder_model, build_mnr_loss_function
+    from approach_3_biEncoder.src.s3_utils import upload_file_to_s3
+except (ImportError, ValueError):
+    try:
+        from config import path_config, model_config
+        from src.dataset import BiEncoderPairDataset
+        from src.model import build_bi_encoder_model, build_mnr_loss_function
+        from src.s3_utils import upload_file_to_s3
+    except (ImportError, ValueError):
+        from ..config import path_config, model_config
+        from .dataset import BiEncoderPairDataset
+        from .model import build_bi_encoder_model, build_mnr_loss_function
+        from .s3_utils import upload_file_to_s3
 
 
 def train_bi_encoder(

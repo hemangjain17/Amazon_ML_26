@@ -6,7 +6,13 @@ from torch.utils.data import Dataset
 from typing import Dict, List, Tuple
 from transformers import AutoTokenizer
 
-from .normalization import format_entity_string
+try:
+    from approach_1_contrastiveVAE.src.normalization import format_entity_string
+except (ImportError, ValueError):
+    try:
+        from src.normalization import format_entity_string
+    except (ImportError, ValueError):
+        from .normalization import format_entity_string
 
 
 class ContrastiveEntityTripletDataset(Dataset):

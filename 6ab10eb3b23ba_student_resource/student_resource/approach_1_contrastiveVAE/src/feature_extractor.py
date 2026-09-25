@@ -5,7 +5,13 @@ import pandas as pd
 from typing import Dict, List, Tuple
 from tqdm import tqdm
 
-from .normalization import clean_text, extract_pin_code
+try:
+    from approach_1_contrastiveVAE.src.normalization import clean_text, extract_pin_code
+except (ImportError, ValueError):
+    try:
+        from src.normalization import clean_text, extract_pin_code
+    except (ImportError, ValueError):
+        from .normalization import clean_text, extract_pin_code
 
 
 def jaro_winkler_similarity(s1: str, s2: str) -> float:

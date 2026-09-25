@@ -5,8 +5,16 @@ import pandas as pd
 from typing import Dict, List, Tuple
 from sentence_transformers import SentenceTransformer
 
-from ..config import path_config, blocking_config
-from .normalization import format_entity_string
+try:
+    from approach_3_biEncoder.config import path_config, blocking_config
+    from approach_3_biEncoder.src.normalization import format_entity_string
+except (ImportError, ValueError):
+    try:
+        from config import path_config, blocking_config
+        from src.normalization import format_entity_string
+    except (ImportError, ValueError):
+        from ..config import path_config, blocking_config
+        from .normalization import format_entity_string
 
 
 def extract_biencoder_embeddings(

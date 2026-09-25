@@ -5,7 +5,13 @@ import pandas as pd
 from typing import Dict, List, Tuple
 from catboost import CatBoostClassifier
 
-from ..config import path_config, reranker_config
+try:
+    from approach_3_biEncoder.config import path_config, reranker_config
+except (ImportError, ValueError):
+    try:
+        from config import path_config, reranker_config
+    except (ImportError, ValueError):
+        from ..config import path_config, reranker_config
 
 
 def compute_macro_f_beta(

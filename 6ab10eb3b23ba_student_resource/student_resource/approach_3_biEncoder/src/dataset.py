@@ -4,7 +4,13 @@ from torch.utils.data import Dataset
 from sentence_transformers import InputExample
 from transformers import AutoTokenizer
 
-from .normalization import format_entity_string
+try:
+    from approach_3_biEncoder.src.normalization import format_entity_string
+except (ImportError, ValueError):
+    try:
+        from src.normalization import format_entity_string
+    except (ImportError, ValueError):
+        from .normalization import format_entity_string
 
 
 class BiEncoderPairDataset:

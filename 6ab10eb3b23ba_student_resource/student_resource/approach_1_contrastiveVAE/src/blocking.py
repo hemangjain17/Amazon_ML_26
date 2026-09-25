@@ -7,9 +7,19 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Dict, List, Tuple
 
-from ..config import path_config, model_config, blocking_config
-from .dataset import EntityInferenceDataset
-from .model import ContrastiveVAE
+try:
+    from approach_1_contrastiveVAE.config import path_config, model_config, blocking_config
+    from approach_1_contrastiveVAE.src.dataset import EntityInferenceDataset
+    from approach_1_contrastiveVAE.src.model import ContrastiveVAE
+except (ImportError, ValueError):
+    try:
+        from config import path_config, model_config, blocking_config
+        from src.dataset import EntityInferenceDataset
+        from src.model import ContrastiveVAE
+    except (ImportError, ValueError):
+        from ..config import path_config, model_config, blocking_config
+        from .dataset import EntityInferenceDataset
+        from .model import ContrastiveVAE
 
 
 def extract_latent_embeddings(

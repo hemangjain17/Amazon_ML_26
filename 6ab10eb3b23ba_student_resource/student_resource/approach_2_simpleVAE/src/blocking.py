@@ -7,9 +7,19 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing import Dict, List, Tuple
 
-from ..config import path_config, model_config, blocking_config
-from .dataset import EntityInferenceDataset
-from .model import SimpleVAE
+try:
+    from approach_2_simpleVAE.config import path_config, model_config, blocking_config
+    from approach_2_simpleVAE.src.dataset import EntityInferenceDataset
+    from approach_2_simpleVAE.src.model import SimpleVAE
+except (ImportError, ValueError):
+    try:
+        from config import path_config, model_config, blocking_config
+        from src.dataset import EntityInferenceDataset
+        from src.model import SimpleVAE
+    except (ImportError, ValueError):
+        from ..config import path_config, model_config, blocking_config
+        from .dataset import EntityInferenceDataset
+        from .model import SimpleVAE
 
 
 def extract_latent_embeddings(

@@ -6,10 +6,22 @@ from transformers import get_linear_schedule_with_warmup
 import pandas as pd
 from tqdm import tqdm
 
-from ..config import path_config, model_config
-from .dataset import ContrastiveEntityTripletDataset
-from .model import ContrastiveVAE
-from .s3_utils import upload_file_to_s3
+try:
+    from approach_1_contrastiveVAE.config import path_config, model_config
+    from approach_1_contrastiveVAE.src.dataset import ContrastiveEntityTripletDataset
+    from approach_1_contrastiveVAE.src.model import ContrastiveVAE
+    from approach_1_contrastiveVAE.src.s3_utils import upload_file_to_s3
+except (ImportError, ValueError):
+    try:
+        from config import path_config, model_config
+        from src.dataset import ContrastiveEntityTripletDataset
+        from src.model import ContrastiveVAE
+        from src.s3_utils import upload_file_to_s3
+    except (ImportError, ValueError):
+        from ..config import path_config, model_config
+        from .dataset import ContrastiveEntityTripletDataset
+        from .model import ContrastiveVAE
+        from .s3_utils import upload_file_to_s3
 
 
 def train_contrastive_vae(

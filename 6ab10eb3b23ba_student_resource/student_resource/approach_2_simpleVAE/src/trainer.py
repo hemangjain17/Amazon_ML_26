@@ -6,10 +6,22 @@ from transformers import get_linear_schedule_with_warmup
 import pandas as pd
 from tqdm import tqdm
 
-from ..config import path_config, model_config
-from .dataset import UnsupervisedEntityDataset
-from .model import SimpleVAE
-from .s3_utils import upload_file_to_s3
+try:
+    from approach_2_simpleVAE.config import path_config, model_config
+    from approach_2_simpleVAE.src.dataset import UnsupervisedEntityDataset
+    from approach_2_simpleVAE.src.model import SimpleVAE
+    from approach_2_simpleVAE.src.s3_utils import upload_file_to_s3
+except (ImportError, ValueError):
+    try:
+        from config import path_config, model_config
+        from src.dataset import UnsupervisedEntityDataset
+        from src.model import SimpleVAE
+        from src.s3_utils import upload_file_to_s3
+    except (ImportError, ValueError):
+        from ..config import path_config, model_config
+        from .dataset import UnsupervisedEntityDataset
+        from .model import SimpleVAE
+        from .s3_utils import upload_file_to_s3
 
 
 def train_simple_vae(

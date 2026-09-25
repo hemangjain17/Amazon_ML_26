@@ -3,7 +3,13 @@ import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer
 
-from .normalization import format_entity_string
+try:
+    from approach_2_simpleVAE.src.normalization import format_entity_string
+except (ImportError, ValueError):
+    try:
+        from src.normalization import format_entity_string
+    except (ImportError, ValueError):
+        from .normalization import format_entity_string
 
 
 class UnsupervisedEntityDataset(Dataset):
