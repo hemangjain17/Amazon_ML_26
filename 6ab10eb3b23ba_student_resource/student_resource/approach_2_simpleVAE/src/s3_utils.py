@@ -33,37 +33,46 @@ def download_file_from_s3(bucket: str, s3_key: str, local_file_path: str) -> boo
         return False
 
 
-def sync_directory_to_s3(local_dir: str, bucket: str, s3_prefix: str) -> None:
-    s3_client = boto3.client("s3")
-    for root, _, files in os.walk(local_dir):
-        for file in files:
-            local_path = os.path.join(root, file)
-            relative_path = os.path.relpath(local_path, local_dir)
-            s3_key = os.path.join(s3_prefix, relative_path).replace("\\", "/")
-            try:
-                s3_client.upload_file(local_path, bucket, s3_key)
-            except ClientError as e:
-                print(f"Failed to upload {local_path}: {e}")
-    print(f"Synced directory {local_dir} -> s3://{bucket}/{s3_prefix}")
-
-
 def sync_directory_from_s3(bucket: str, s3_prefix: str, local_dir: str) -> None:
     os.makedirs(local_dir, exist_ok=True)
     s3_client = boto3.client("s3")
-    paginator = s3_client.get_paginator("list_objects_v2")
     count = 0
-    for page in paginator.paginate(Bucket=bucket, Prefix=s3_prefix):
-        if "Contents" in page:
-            for obj in page["Contents"]:
-                s3_key = obj["Key"]
-                if s3_key.endswith("/"):
-                    continue
-                rel_path = os.path.relpath(s3_key, s3_prefix)
-                target_path = os.path.join(local_dir, rel_path)
-                os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                try:
-                    s3_client.download_file(bucket, s3_key, target_path)
-                    count += 1
-                except ClientError as e:
-                    print(f"Failed to download {s3_key}: {e}")
+    try:
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket, Prefix=s3_prefix):
+            if "Contents" in page:
+                for obj in page["Contents"]:
+                    s3_key = obj["Key"]
+                    if s3_key.endswith("/"):
+                        continue
+                    rel_path = os.path.relpath(s3_key, s3_prefix)
+                    target_path = os.path.join(local_dir, rel_path)
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    try:
+                        s3_client.download_file(bucket, s3_key, target_path)
+                        count += 1
+                    except ClientError as e:
+                        print(f"Failed to download {s3_key}: {e}")
+    except ClientError as e:
+        print(f"ListObjectsV2 failed ({e}). Attempting direct file download fallback...")
+        known_files = [
+            "train/train_source1.tsv",
+            "train/train_source2.tsv",
+            "train/train_source3.tsv",
+            "train/train_ground_truth.tsv",
+            "test/test_source1.tsv",
+            "test/test_source2.tsv",
+            "test/test_source3.tsv",
+        ]
+        for k_file in known_files:
+            s3_key = f"{s3_prefix}/{k_file}".replace("//", "/")
+            target_path = os.path.join(local_dir, k_file)
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            try:
+                s3_client.download_file(bucket, s3_key, target_path)
+                print(f"Downloaded s3://{bucket}/{s3_key} -> {target_path}")
+                count += 1
+            except ClientError as dl_err:
+                print(f"Could not download {s3_key}: {dl_err}")
+
     print(f"Synced {count} files from s3://{bucket}/{s3_prefix} -> {local_dir}")
