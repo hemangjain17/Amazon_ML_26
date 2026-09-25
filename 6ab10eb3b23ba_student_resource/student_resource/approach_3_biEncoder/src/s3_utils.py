@@ -67,7 +67,7 @@ def sync_directory_from_s3(bucket: str, s3_prefix: str, local_dir: str) -> None:
                         count += 1
                     except ClientError as e:
                         print(f"Failed to download {s3_key}: {e}")
-    except ClientError as e:
+    except Exception as e:
         print(f"ListObjectsV2 failed ({e}). Attempting direct file download fallback...")
         known_files = [
             "train/train_source1.tsv",
@@ -86,7 +86,7 @@ def sync_directory_from_s3(bucket: str, s3_prefix: str, local_dir: str) -> None:
                 s3_client.download_file(bucket, s3_key, target_path)
                 print(f"Downloaded s3://{bucket}/{s3_key} -> {target_path}")
                 count += 1
-            except ClientError as dl_err:
+            except Exception as dl_err:
                 print(f"Could not download {s3_key}: {dl_err}")
 
     print(f"Synced {count} files from s3://{bucket}/{s3_prefix} -> {local_dir}")
