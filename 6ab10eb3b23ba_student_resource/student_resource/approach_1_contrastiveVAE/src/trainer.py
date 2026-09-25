@@ -35,6 +35,13 @@ def train_contrastive_vae(
     save_s3: bool = True,
 ):
     """Trains Contrastive VAE model on Ground Truth triplet pairs."""
+    # Clean up previous run variables and release active GPU VRAM cache
+    import gc
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        print("Cleared CUDA VRAM cache before initializing training.")
+
     s1_path = s1_path or os.path.join(path_config.train_dir, "train_source1.tsv")
     s2_path = s2_path or os.path.join(path_config.train_dir, "train_source2.tsv")
     s3_path = s3_path or os.path.join(path_config.train_dir, "train_source3.tsv")
