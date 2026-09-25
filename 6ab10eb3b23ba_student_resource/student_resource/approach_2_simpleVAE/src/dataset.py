@@ -20,6 +20,7 @@ class UnsupervisedEntityDataset(Dataset):
         dfs: list[pd.DataFrame],
         tokenizer_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         max_length: int = 128,
+        max_records: int = 250000, # Capping for unsupervised VAE training
     ):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
@@ -36,6 +37,14 @@ class UnsupervisedEntityDataset(Dataset):
                     self.formatted_texts.append(formatted)
 
         print(f"Total unsupervised training entity strings: {len(self.formatted_texts):,}")
+        
+        # Subsample records to prevent long unsupervised training cycles on CPU/GPU
+        if max_records and len(self.formatted_texts) > max_records:
+            print(f"--> Capping unsupervised training records to a diverse sample of {max_records:,}...")
+            random_seed = 42
+            import random
+            random.seed(random_seed)
+            self.formatted_texts = random.sample(self.formatted_texts, max_records)
 
     def __len__(self):
         return len(self.formatted_texts)

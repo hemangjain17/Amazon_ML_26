@@ -22,6 +22,7 @@ class BiEncoderPairDataset:
         s2_df: pd.DataFrame,
         s3_df: pd.DataFrame,
         gt_df: pd.DataFrame,
+        max_pairs: int = 250000, # Subsample capping
     ):
         print("Building lookup dictionaries for Bi-Encoder dataset...")
         self.s1_records = self._dataframe_to_dict(s1_df)
@@ -49,6 +50,13 @@ class BiEncoderPairDataset:
                     self.examples.append(InputExample(texts=[s1_text, pos_text], label=1.0))
 
         print(f"Total positive Bi-Encoder training pairs constructed: {len(self.examples):,}")
+        
+        # Subsample positive training pairs to keep training around ~10 minutes on Kaggle T4 GPU
+        if max_pairs and len(self.examples) > max_pairs:
+            print(f"--> Capping training pairs to a diverse sample of {max_pairs:,}...")
+            import random
+            random.seed(42)
+            self.examples = random.sample(self.examples, max_pairs)
 
     def _dataframe_to_dict(self, df: pd.DataFrame) -> Dict[str, dict]:
         # Using zipped lists is 50-100x faster than iterrows()

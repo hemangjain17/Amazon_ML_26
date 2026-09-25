@@ -28,6 +28,7 @@ class ContrastiveEntityTripletDataset(Dataset):
         gt_df: pd.DataFrame,
         tokenizer_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         max_length: int = 128,
+        max_triplets: int = 250000, # Sensible default for fast, accurate training on Kaggle/SageMaker
     ):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
@@ -64,7 +65,13 @@ class ContrastiveEntityTripletDataset(Dataset):
                 elif pos_id.startswith("S3-") and pos_id in self.s3_records:
                     self.triplets.append((s1_id, pos_id))
 
-        print(f"Total positive training pairs constructed: {len(self.triplets)}")
+        print(f"Total positive training pairs constructed: {len(self.triplets):,}")
+        
+        # Subsample triplets to prevent 17+ hour execution bottleneck while preserving representation quality
+        if max_triplets and len(self.triplets) > max_triplets:
+            print(f"--> Capping triplets to a diverse sample of {max_triplets:,} (reduces execution time to ~10-15 mins)...")
+            random.seed(42)
+            self.triplets = random.sample(self.triplets, max_triplets)
 
     def _dataframe_to_dict(self, df: pd.DataFrame) -> Dict[str, dict]:
         # Using lists zipped together is 50-100x faster than df.iterrows()
