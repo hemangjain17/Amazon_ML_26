@@ -67,14 +67,16 @@ class ContrastiveEntityTripletDataset(Dataset):
         print(f"Total positive training pairs constructed: {len(self.triplets)}")
 
     def _dataframe_to_dict(self, df: pd.DataFrame) -> Dict[str, dict]:
-        records = {}
-        for _, row in df.iterrows():
-            records[row["entity_id"]] = {
-                "name": str(row["business_name"]),
-                "address": str(row["business_address"]),
-                "country": str(row["country"]),
-            }
-        return records
+        # Using lists zipped together is 50-100x faster than df.iterrows()
+        ids = df["entity_id"].tolist()
+        names = df["business_name"].fillna("").astype(str).tolist()
+        addrs = df["business_address"].fillna("").astype(str).tolist()
+        countries = df["country"].fillna("").astype(str).tolist()
+        
+        return {
+            entity_id: {"name": name, "address": addr, "country": country}
+            for entity_id, name, addr, country in zip(ids, names, addrs, countries)
+        }
 
     def _get_entity_text(self, entity_id: str, record_dict: dict) -> str:
         rec = record_dict.get(entity_id, {})
@@ -161,13 +163,17 @@ class EntityInferenceDataset(Dataset):
         max_length: int = 128,
     ):
         self.entity_ids = df["entity_id"].tolist()
-        self.countries = df["country"].tolist() if "country" in df.columns else ["US"] * len(df)
+        self.countries = df["country"].fillna("US").astype(str).tolist() if "country" in df.columns else ["US"] * len(df)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
 
+        names = df["business_name"].fillna("").astype(str).tolist()
+        addrs = df["business_address"].fillna("").astype(str).tolist()
+        countries = self.countries
+
         self.formatted_texts = [
-            format_entity_string(row["business_name"], row["business_address"], row.get("country", ""))
-            for _, row in df.iterrows()
+            format_entity_string(name, addr, country)
+            for name, addr, country in zip(names, addrs, countries)
         ]
 
     def __len__(self):

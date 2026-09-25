@@ -26,12 +26,12 @@ class UnsupervisedEntityDataset(Dataset):
 
         self.formatted_texts = []
         for df in dfs:
-            for _, row in df.iterrows():
-                formatted = format_entity_string(
-                    name=row.get("business_name", ""),
-                    address=row.get("business_address", ""),
-                    country=row.get("country", ""),
-                )
+            names = df["business_name"].fillna("").astype(str).tolist()
+            addrs = df["business_address"].fillna("").astype(str).tolist()
+            countries = df["country"].fillna("").astype(str).tolist() if "country" in df.columns else [""] * len(df)
+            
+            for name, addr, country in zip(names, addrs, countries):
+                formatted = format_entity_string(name=name, address=addr, country=country)
                 if formatted.strip():
                     self.formatted_texts.append(formatted)
 
@@ -65,13 +65,17 @@ class EntityInferenceDataset(Dataset):
         max_length: int = 128,
     ):
         self.entity_ids = df["entity_id"].tolist()
-        self.countries = df["country"].tolist() if "country" in df.columns else ["US"] * len(df)
+        self.countries = df["country"].fillna("US").astype(str).tolist() if "country" in df.columns else ["US"] * len(df)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
 
+        names = df["business_name"].fillna("").astype(str).tolist()
+        addrs = df["business_address"].fillna("").astype(str).tolist()
+        countries = self.countries
+
         self.formatted_texts = [
-            format_entity_string(row["business_name"], row["business_address"], row.get("country", ""))
-            for _, row in df.iterrows()
+            format_entity_string(name, addr, country)
+            for name, addr, country in zip(names, addrs, countries)
         ]
 
     def __len__(self):
