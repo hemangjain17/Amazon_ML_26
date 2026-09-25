@@ -1,5 +1,8 @@
 import os
 import boto3
+import urllib.request
+from botocore import UNSIGNED
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 
@@ -47,51 +50,85 @@ def sync_directory_to_s3(local_dir: str, bucket: str, s3_prefix: str) -> None:
     print(f"Synced directory {local_dir} -> s3://{bucket}/{s3_prefix}")
 
 
-def sync_directory_from_s3(bucket: str, s3_prefix: str, local_dir: str) -> None:
+def sync_directory_from_s3(bucket: str, s3_prefix: str, local_dir: str, region: str = "eu-north-1") -> bool:
     os.makedirs(local_dir, exist_ok=True)
-    s3_client = boto3.client("s3")
+    known_files = [
+        "train/train_source1.tsv",
+        "train/train_source2.tsv",
+        "train/train_source3.tsv",
+        "train/train_ground_truth.tsv",
+        "test/test_source1.tsv",
+        "test/test_source2.tsv",
+        "test/test_source3.tsv",
+    ]
+    
     count = 0
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=bucket, Prefix=s3_prefix):
-            if "Contents" in page:
-                for obj in page["Contents"]:
-                    s3_key = obj["Key"]
-                    if s3_key.endswith("/"):
-                        continue
-                    rel_path = os.path.relpath(s3_key, s3_prefix)
-                    target_path = os.path.join(local_dir, rel_path)
-                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                    try:
-                        s3_client.download_file(bucket, s3_key, target_path)
-                        count += 1
-                    except ClientError as e:
-                        print(f"Failed to download {s3_key}: {e}")
-    except Exception as e:
-        print(f"ListObjectsV2 unavailable ({e}). Running direct S3 key downloads...")
-        known_files = [
-            ("train/train_source1.tsv", ["dataset/train/train_source1.tsv", "train/train_source1.tsv", "dataset/train_source1.tsv", "train_source1.tsv"]),
-            ("train/train_source2.tsv", ["dataset/train/train_source2.tsv", "train/train_source2.tsv", "dataset/train_source2.tsv", "train_source2.tsv"]),
-            ("train/train_source3.tsv", ["dataset/train/train_source3.tsv", "train/train_source3.tsv", "dataset/train_source3.tsv", "train_source3.tsv"]),
-            ("train/train_ground_truth.tsv", ["dataset/train/train_ground_truth.tsv", "train/train_ground_truth.tsv", "dataset/train_ground_truth.tsv", "train_ground_truth.tsv"]),
-            ("test/test_source1.tsv", ["dataset/test/test_source1.tsv", "test/test_source1.tsv", "dataset/test_source1.tsv", "test_source1.tsv"]),
-            ("test/test_source2.tsv", ["dataset/test/test_source2.tsv", "test/test_source2.tsv", "dataset/test_source2.tsv", "test_source2.tsv"]),
-            ("test/test_source3.tsv", ["dataset/test/test_source3.tsv", "test/test_source3.tsv", "dataset/test_source3.tsv", "test_source3.tsv"]),
+    s3_client = boto3.client("s3")
+    s3_unsigned = boto3.client("s3", config=Config(signature_version=UNSIGNED), region_name=region)
+
+    for rel_file in known_files:
+        target_path = os.path.join(local_dir, rel_file)
+        if os.path.exists(target_path) and os.path.getsize(target_path) > 100:
+            count += 1
+            continue
+
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        downloaded = False
+
+        candidate_keys = [
+            f"{s3_prefix}/{rel_file}".replace("//", "/"),
+            f"dataset/{rel_file}".replace("//", "/"),
+            f"{rel_file}".replace("//", "/")
         ]
-        for rel_file, candidate_keys in known_files:
-            target_path = os.path.join(local_dir, rel_file)
-            os.makedirs(os.path.dirname(target_path), exist_ok=True)
-            downloaded = False
-            for s3_key in candidate_keys:
-                try:
-                    s3_client.download_file(bucket, s3_key, target_path)
-                    print(f"Downloaded s3://{bucket}/{s3_key} -> {target_path}")
+
+        # Method A: Authenticated boto3
+        for s3_key in candidate_keys:
+            try:
+                s3_client.download_file(bucket, s3_key, target_path)
+                if os.path.exists(target_path) and os.path.getsize(target_path) > 100:
+                    print(f"Downloaded via Authenticated S3: s3://{bucket}/{s3_key} -> {target_path}")
                     count += 1
                     downloaded = True
                     break
-                except Exception:
-                    continue
-            if not downloaded:
-                print(f"Could not download {rel_file} from S3 candidates: {candidate_keys}")
+            except Exception:
+                pass
 
-    print(f"Synced {count} files from s3://{bucket}/{s3_prefix} -> {local_dir}")
+        # Method B: Unsigned boto3 (Public S3 Bucket)
+        if not downloaded:
+            for s3_key in candidate_keys:
+                try:
+                    s3_unsigned.download_file(bucket, s3_key, target_path)
+                    if os.path.exists(target_path) and os.path.getsize(target_path) > 100:
+                        print(f"Downloaded via Unsigned Public S3: s3://{bucket}/{s3_key} -> {target_path}")
+                        count += 1
+                        downloaded = True
+                        break
+                except Exception:
+                    pass
+
+        # Method C: Direct HTTPS URL Download
+        if not downloaded:
+            for s3_key in candidate_keys:
+                public_urls = [
+                    f"https://{bucket}.s3.{region}.amazonaws.com/{s3_key}",
+                    f"https://s3.{region}.amazonaws.com/{bucket}/{s3_key}",
+                ]
+                for url in public_urls:
+                    try:
+                        urllib.request.urlretrieve(url, target_path)
+                        if os.path.exists(target_path) and os.path.getsize(target_path) > 100:
+                            print(f"Downloaded via Public HTTPS: {url} -> {target_path}")
+                            count += 1
+                            downloaded = True
+                            break
+                    except Exception:
+                        pass
+                if downloaded:
+                    break
+
+        if not downloaded:
+            print(f"Could not locate or download {rel_file} from S3 bucket {bucket}.")
+
+    success = (count >= len(known_files))
+    print(f"Synced {count}/{len(known_files)} dataset files from S3 -> {local_dir}")
+    return success
