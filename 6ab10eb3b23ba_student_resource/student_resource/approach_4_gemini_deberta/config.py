@@ -124,7 +124,7 @@ class PathConfig:
 @dataclass
 class GeminiConfig:
     api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
-    model_name: str = "models/text-embedding-004"
+    model_name: str = "models/gemini-embedding-2"
     batch_size: int = 100
     max_workers: int = 8
     top_k_retrieval: int = 50
