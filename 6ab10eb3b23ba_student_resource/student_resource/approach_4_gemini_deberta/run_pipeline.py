@@ -339,8 +339,14 @@ def run_pipeline():
         logger.info("=== STEP 5/5: Stage 3 - Export Submission Files ===")
         notifier.update_status("Stage 3: Generating matching_results.tsv & candidate_pairs.tsv...")
 
+        # Load complete list of S1 entity IDs from test_source1.tsv to guarantee 100% submission coverage
+        test_s1_path = os.path.join(path_config.test_dir, "test_source1.tsv")
+        full_test_s1_df = pd.read_csv(test_s1_path, sep="\t", dtype=str, usecols=lambda col: col in ("source1_entity_id", "entity_id", "id"))
+        id_col = full_test_s1_df.columns[0]
+        all_test_s1_ids = [clean_str(i) for i in full_test_s1_df[id_col]]
+
         matching_path, cand_pairs_path = generate_submission_files(
-            s1_ids=test_s1_ids,
+            s1_ids=all_test_s1_ids,
             pair_predictions=test_pair_preds,
             decision_threshold=best_thresh,
             output_dir=path_config.output_dir,
