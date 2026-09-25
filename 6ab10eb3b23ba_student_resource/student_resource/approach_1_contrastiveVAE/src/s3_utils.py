@@ -71,28 +71,33 @@ def sync_directory_from_s3(bucket: str, s3_prefix: str, local_dir: str) -> None:
                     try:
                         s3_client.download_file(bucket, s3_key, target_path)
                         count += 1
-                    except ClientError as e:
+                    except Exception as e:
                         print(f"Failed to download {s3_key}: {e}")
     except Exception as e:
-        print(f"ListObjectsV2 failed ({e}). Attempting direct file download fallback...")
+        print(f"ListObjectsV2 unavailable ({e}). Running direct S3 key downloads...")
         known_files = [
-            "train/train_source1.tsv",
-            "train/train_source2.tsv",
-            "train/train_source3.tsv",
-            "train/train_ground_truth.tsv",
-            "test/test_source1.tsv",
-            "test/test_source2.tsv",
-            "test/test_source3.tsv",
+            ("train/train_source1.tsv", ["dataset/train/train_source1.tsv", "train/train_source1.tsv", "dataset/train_source1.tsv", "train_source1.tsv"]),
+            ("train/train_source2.tsv", ["dataset/train/train_source2.tsv", "train/train_source2.tsv", "dataset/train_source2.tsv", "train_source2.tsv"]),
+            ("train/train_source3.tsv", ["dataset/train/train_source3.tsv", "train/train_source3.tsv", "dataset/train_source3.tsv", "train_source3.tsv"]),
+            ("train/train_ground_truth.tsv", ["dataset/train/train_ground_truth.tsv", "train/train_ground_truth.tsv", "dataset/train_ground_truth.tsv", "train_ground_truth.tsv"]),
+            ("test/test_source1.tsv", ["dataset/test/test_source1.tsv", "test/test_source1.tsv", "dataset/test_source1.tsv", "test_source1.tsv"]),
+            ("test/test_source2.tsv", ["dataset/test/test_source2.tsv", "test/test_source2.tsv", "dataset/test_source2.tsv", "test_source2.tsv"]),
+            ("test/test_source3.tsv", ["dataset/test/test_source3.tsv", "test/test_source3.tsv", "dataset/test_source3.tsv", "test_source3.tsv"]),
         ]
-        for k_file in known_files:
-            s3_key = f"{s3_prefix}/{k_file}".replace("//", "/")
-            target_path = os.path.join(local_dir, k_file)
+        for rel_file, candidate_keys in known_files:
+            target_path = os.path.join(local_dir, rel_file)
             os.makedirs(os.path.dirname(target_path), exist_ok=True)
-            try:
-                s3_client.download_file(bucket, s3_key, target_path)
-                print(f"Downloaded s3://{bucket}/{s3_key} -> {target_path}")
-                count += 1
-            except Exception as dl_err:
-                print(f"Could not download {s3_key}: {dl_err}")
+            downloaded = False
+            for s3_key in candidate_keys:
+                try:
+                    s3_client.download_file(bucket, s3_key, target_path)
+                    print(f"Downloaded s3://{bucket}/{s3_key} -> {target_path}")
+                    count += 1
+                    downloaded = True
+                    break
+                except Exception:
+                    continue
+            if not downloaded:
+                print(f"Could not download {rel_file} from S3 candidates: {candidate_keys}")
 
     print(f"Synced {count} files from s3://{bucket}/{s3_prefix} -> {local_dir}")
