@@ -1,0 +1,49 @@
+# Python & Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+__MACOSX/
+*.swp
+.ipynb_checkpoints/
+
+# Heavy Datasets & Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+dataset/
+dataset_50k/
+dummy_folder/
+**/dataset/
+**/dummy_folder/
+catboost_info/
+
+# Large Model Weights, Embeddings & Binary Artifacts
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.npy
+*.npz
+*.parquet
+**/artifacts/
+**/models/
+**/embeddings/
+
+# Output Results & Data TSVs
+**/output/*.tsv
+*.tsv
+!**/dataset/train/train_source1.tsv.example  # Optional pattern if needed
+
+# PDFs & Raw Downloads
+*.pdf
