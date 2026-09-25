@@ -1,6 +1,51 @@
 import os
+import zipfile
 from dataclasses import dataclass, field
 from typing import List, Tuple
+
+
+def ensure_dataset_extracted(local_dir: str) -> bool:
+    """Extracts dataset.zip automatically if TSV files are missing from local_dir."""
+    if not local_dir:
+        return False
+    known_files = [
+        "train/train_source1.tsv",
+        "train/train_source2.tsv",
+        "train/train_source3.tsv",
+        "train/train_ground_truth.tsv",
+        "test/test_source1.tsv",
+        "test/test_source2.tsv",
+        "test/test_source3.tsv",
+    ]
+    all_exist = all(
+        os.path.exists(os.path.join(local_dir, f)) and os.path.getsize(os.path.join(local_dir, f)) > 100
+        for f in known_files
+    )
+    if all_exist:
+        return True
+
+    search_dirs = [
+        local_dir,
+        os.path.dirname(local_dir),
+        os.path.dirname(os.path.dirname(local_dir)),
+    ]
+    zip_path = None
+    for d in search_dirs:
+        candidate = os.path.join(d, "dataset.zip")
+        if os.path.exists(candidate) and os.path.getsize(candidate) > 100:
+            zip_path = candidate
+            break
+
+    if not zip_path:
+        return False
+
+    target_extract_dir = os.path.dirname(local_dir)
+    print(f"📦 Extracting dataset archive from {zip_path} -> {target_extract_dir}...")
+    os.makedirs(target_extract_dir, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall(target_extract_dir)
+    print("✅ Dataset successfully extracted!")
+    return True
 
 
 def resolve_paths(base_dir: str, approach_name: str) -> Tuple[str, str, str, str, str]:
@@ -69,6 +114,8 @@ class PathConfig:
         os.makedirs(self.processed_dir, exist_ok=True)
         os.makedirs(self.embeddings_dir, exist_ok=True)
         os.makedirs(self.models_dir, exist_ok=True)
+
+        ensure_dataset_extracted(self.dataset_dir)
 
 @dataclass
 class ModelConfig:

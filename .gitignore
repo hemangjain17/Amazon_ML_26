@@ -21,9 +21,9 @@ __MACOSX/
 *.rar
 *.7z
 dataset/
+**/dataset/
 dataset_50k/
 dummy_folder/
-**/dataset/
 **/dummy_folder/
 catboost_info/
 
@@ -43,7 +43,6 @@ catboost_info/
 # Output Results & Data TSVs
 **/output/*.tsv
 *.tsv
-!**/dataset/train/train_source1.tsv.example  # Optional pattern if needed
 
 # PDFs & Raw Downloads
 *.pdf

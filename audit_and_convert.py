@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import zipfile
 import pandas as pd
 import numpy as np
 
@@ -10,6 +11,14 @@ CSV_DIR = os.path.join(BASE_DIR, "dataset_csv")
 
 os.makedirs(os.path.join(CSV_DIR, "train"), exist_ok=True)
 os.makedirs(os.path.join(CSV_DIR, "test"), exist_ok=True)
+
+# Ensure dataset is unzipped if TSVs are missing
+zip_path = os.path.join(BASE_DIR, "dataset.zip")
+if not os.path.exists(os.path.join(DATASET_DIR, "train", "train_source1.tsv")) and os.path.exists(zip_path):
+    print(f"📦 Extracting {zip_path} -> {BASE_DIR}...")
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall(BASE_DIR)
+    print("✅ Extraction complete!")
 
 files_to_process = [
     ("train", "train_source1.tsv", "train_source1.csv"),
