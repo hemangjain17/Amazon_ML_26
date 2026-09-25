@@ -76,7 +76,7 @@ class ModelConfig:
     max_seq_length: int = 128
     latent_dim: int = 256
     
-    batch_size: int = 128
+    batch_size: int = 32
     learning_rate: float = 2e-5
     epochs: int = 5
     beta_kl: float = 0.01          # Weight for KL divergence loss

@@ -68,6 +68,9 @@ def train_simple_vae(
     total_steps = len(dataloader) * epochs
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=int(total_steps * 0.1), num_training_steps=total_steps)
 
+    # Enable Mixed Precision gradient scaler for FP16 training to save 2x GPU VRAM
+    scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
+
     print(f"Starting Unsupervised Simple VAE Training for {epochs} Epochs ({total_steps} steps)...")
     best_loss = float("inf")
     checkpoint_path = os.path.join(path_config.models_dir, "best_simple_vae.pt")
@@ -84,16 +87,22 @@ def train_simple_vae(
             attention_mask = batch["attention_mask"].to(device)
 
             optimizer.zero_grad()
-            losses = model.compute_loss(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                beta=model_config.beta_kl,
-            )
+            
+            # Autocast FP16 forward pass
+            with torch.cuda.amp.autocast(enabled=(device.type == "cuda")):
+                losses = model.compute_loss(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    beta=model_config.beta_kl,
+                )
+                loss = losses["total_loss"]
 
-            loss = losses["total_loss"]
-            loss.backward()
+            # Scaled backward pass
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             scheduler.step()
 
             running_total_loss += loss.item()

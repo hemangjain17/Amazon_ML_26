@@ -75,7 +75,7 @@ class ModelConfig:
     backbone_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     max_seq_length: int = 128
     
-    batch_size: int = 128
+    batch_size: int = 32
     learning_rate: float = 2e-5
     epochs: int = 5
     warmup_steps: int = 500
