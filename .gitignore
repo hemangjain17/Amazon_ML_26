@@ -14,6 +14,8 @@ __pycache__/
 __MACOSX/
 *.swp
 .ipynb_checkpoints/
+.env
+*.env
 
 # Heavy Datasets & Archives
 *.zip
