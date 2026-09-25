@@ -45,3 +45,25 @@ def sync_directory_to_s3(local_dir: str, bucket: str, s3_prefix: str) -> None:
             except ClientError as e:
                 print(f"Failed to upload {local_path}: {e}")
     print(f"Synced directory {local_dir} -> s3://{bucket}/{s3_prefix}")
+
+
+def sync_directory_from_s3(bucket: str, s3_prefix: str, local_dir: str) -> None:
+    os.makedirs(local_dir, exist_ok=True)
+    s3_client = boto3.client("s3")
+    paginator = s3_client.get_paginator("list_objects_v2")
+    count = 0
+    for page in paginator.paginate(Bucket=bucket, Prefix=s3_prefix):
+        if "Contents" in page:
+            for obj in page["Contents"]:
+                s3_key = obj["Key"]
+                if s3_key.endswith("/"):
+                    continue
+                rel_path = os.path.relpath(s3_key, s3_prefix)
+                target_path = os.path.join(local_dir, rel_path)
+                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                try:
+                    s3_client.download_file(bucket, s3_key, target_path)
+                    count += 1
+                except ClientError as e:
+                    print(f"Failed to download {s3_key}: {e}")
+    print(f"Synced {count} files from s3://{bucket}/{s3_prefix} -> {local_dir}")
