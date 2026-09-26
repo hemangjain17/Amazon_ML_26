@@ -81,15 +81,27 @@ def cache_or_extract(
         cache_path = os.path.join(path_config.embeddings_dir, candidate_name)
         ids_path = cache_path.replace(".npy", "_ids.npy")
         countries_path = cache_path.replace(".npy", "_countries.npy")
-        if not all(os.path.exists(path) for path in (cache_path, ids_path, countries_path)):
+        if not os.path.exists(cache_path):
             continue
         embeddings = np.load(cache_path, mmap_mode="r")
-        ids = np.load(ids_path, allow_pickle=True).tolist()
-        countries = np.load(countries_path, allow_pickle=True).tolist()
-        if embeddings.shape[0] == expected_rows and len(ids) == expected_rows and len(countries) == expected_rows:
+        if embeddings.shape[0] != expected_rows:
+            print(f"Ignoring stale cache {cache_path}: expected {expected_rows}, found {embeddings.shape[0]}")
+            continue
+        if os.path.exists(ids_path) and os.path.exists(countries_path):
+            ids = np.load(ids_path, allow_pickle=True).tolist()
+            countries = np.load(countries_path, allow_pickle=True).tolist()
+        else:
+            # Legacy blocking.py saved only the vectors. Its extraction order is
+            # exactly the dataframe order, so recover the side metadata safely.
+            ids = df["entity_id"].astype(str).tolist()
+            countries = df["country"].fillna("US").astype(str).tolist()
+            np.save(ids_path, np.asarray(ids, dtype=object), allow_pickle=True)
+            np.save(countries_path, np.asarray(countries, dtype=object), allow_pickle=True)
+            print(f"Recovered legacy cache metadata beside {cache_path}")
+        if len(ids) == expected_rows and len(countries) == expected_rows:
             print(f"Reusing cached embeddings: {cache_path}")
             return ids, countries, np.asarray(embeddings, dtype=np.float32)
-        print(f"Ignoring stale cache {cache_path}: expected {expected_rows}, found {embeddings.shape[0]}")
+        print(f"Ignoring cache metadata beside {cache_path}: expected {expected_rows} rows")
 
     cache_path = os.path.join(path_config.embeddings_dir, name)
     ids_path = cache_path.replace(".npy", "_ids.npy")
