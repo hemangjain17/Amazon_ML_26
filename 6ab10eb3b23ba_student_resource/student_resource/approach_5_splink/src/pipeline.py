@@ -37,6 +37,7 @@ def normalize(value: object) -> str:
 def prepare_frame(frame: pd.DataFrame) -> pd.DataFrame:
     frame = frame.copy()
     frame["unique_id"] = frame["entity_id"]
+    frame["cluster"] = frame["entity_id"]
     frame["country_norm"] = frame["country"].map(normalize)
     frame["name_core"] = frame["business_name"].map(normalize)
     frame["addr_norm"] = frame["business_address"].map(normalize)
