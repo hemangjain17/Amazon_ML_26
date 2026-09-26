@@ -24,6 +24,8 @@ The current checkout did not contain the original `approach.md` or EXP-FINAL imp
 !python /kaggle/working/Amazon_ML_26/6ab10eb3b23ba_student_resource/student_resource/approach_5_b5/run_pipeline.py --output-dir /kaggle/working/output --s1-chunk-size 10000 --max-train-pairs 2000000 --threads 4
 ```
 
+To deliver the completed files through Telegram, set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the Kaggle notebook environment before running. The pipeline sends line-preserving chunks in this order: all `matching_results.tsv` chunks first, then all `candidate_pairs.tsv` chunks. Use `--no-telegram` to disable uploads or `--telegram-chunk-mb 45` to change the chunk size.
+
 The runner streams test inference in S1 chunks and releases the training tables before test scoring. It does not create embedding caches or intermediate pair files; only the two required TSV outputs are written. `--max-train-pairs` bounds the in-memory training matrix, while `--s1-chunk-size` bounds test pair and feature memory.
 
 Progress bars cover normalization, token counting, index construction, candidate generation, context-feature construction, and output writing. A smoke run is typically 5-20 minutes. The full run is approximately 3-8 hours, depending mainly on candidate volume and CPU contention. Budget 30 GB RAM and at least 25 GB free disk.

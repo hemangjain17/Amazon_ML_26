@@ -219,6 +219,8 @@ def main():
     ap.add_argument("--s1-chunk-size", type=int, default=25000)
     ap.add_argument("--max-train-pairs", type=int, default=2000000)
     ap.add_argument("--threads", type=int, default=max(1, (os.cpu_count() or 4) - 1))
+    ap.add_argument("--no-telegram", action="store_true", help="Do not upload completed outputs")
+    ap.add_argument("--telegram-chunk-mb", type=int, default=45)
     args = ap.parse_args()
     root = Path(args.data_root) if args.data_root else Path("/kaggle/input")
     if not root.exists(): root = ROOT / "dataset"
@@ -297,6 +299,9 @@ def main():
             matches[s1_id].append(pool_id)
         for s1_id in tqdm(test_s1.entity_id, total=len(test_s1), desc="write matching output"):
             f.write(f"{s1_id}\t{','.join(matches[s1_id])}\n")
+    if not args.no_telegram:
+        from telegram_sender import send_artifacts
+        send_artifacts(out / "matching_results.tsv", out / "candidate_pairs.tsv", args.telegram_chunk_mb)
     print(f"test pairs={total_test_pairs:,} outputs={out}")
 
 
