@@ -72,6 +72,7 @@ def make_index(pool: pd.DataFrame, cap: int = 400):
         for key in keys:
             counts[(row.country_n, key)] += 1
     index = defaultdict(list)
+    prefix_counts = defaultdict(int)
     for pos, row in enumerate(tqdm(pool.itertuples(), total=len(pool), desc="build blocking index")):
         keys = set(row.name_tokens + row.addr_tokens)
         for key in keys:
@@ -79,10 +80,16 @@ def make_index(pool: pd.DataFrame, cap: int = 400):
                 index[(row.country_n, key)].append(pos)
         if row.house and counts[(row.country_n, row.house)] <= cap:
             index[(row.country_n, "house:" + row.house)].append(pos)
-    return index
+        prefix_counts[(row.country_n, row.name_n[:5])] += 1
+    prefix_index = defaultdict(list)
+    for pos, row in enumerate(pool.itertuples()):
+        prefix = (row.country_n, row.name_n[:5])
+        if prefix_counts[prefix] <= cap * 4:
+            prefix_index[prefix].append(pos)
+    return index, prefix_index
 
 
-def candidates(row, pool: pd.DataFrame, index, top_k: int = 150) -> list[int]:
+def candidates(row, pool_records, index, prefix_index, top_k: int = 150) -> list[int]:
     hits = set()
     keys = set(row.name_tokens + row.addr_tokens)
     for key in keys:
@@ -90,15 +97,13 @@ def candidates(row, pool: pd.DataFrame, index, top_k: int = 150) -> list[int]:
     if row.house:
         hits.update(index.get((row.country_n, "house:" + row.house), []))
     if not hits:
-        prefix = row.name_n[:5]
-        same = pool[(pool.country_n == row.country_n) & pool.name_n.str.startswith(prefix)]
-        hits.update(same.index.tolist())
+        hits.update(prefix_index.get((row.country_n, row.name_n[:5]), []))
     scored = []
     for pos in hits:
-        other = pool.iloc[pos]
-        if row.state and other.state and row.state != other.state:
+        other_name, other_addr, other_state = pool_records[pos]
+        if row.state and other_state and row.state != other_state:
             continue
-        score = 0.55 * ratio(row.name_n, other.name_n) + 0.45 * ratio(row.addr_n, other.addr_n)
+        score = 0.55 * ratio(row.name_n, other_name) + 0.45 * ratio(row.addr_n, other_addr)
         scored.append((score, pos))
     scored.sort(reverse=True)
     return [pos for _, pos in scored[:top_k]]
@@ -115,8 +120,10 @@ def features(left: pd.Series, right: pd.Series, stage1: float = 0.0, rank: int =
 def generate_pairs(s1: pd.DataFrame, pool: pd.DataFrame, index, top_k: int, max_pairs: int | None = None):
     print(f"building candidates for {len(s1):,} S1 rows against {len(pool):,} pool rows")
     pairs = []
+    pool_records = list(pool[["name_n", "addr_n", "state"]].itertuples(index=False, name=None))
+    blocking_index, prefix_index = index
     for left in tqdm(s1.itertuples(index=False), total=len(s1), desc="generate candidates"):
-        for pos in candidates(left, pool, index, top_k):
+        for pos in candidates(left, pool_records, blocking_index, prefix_index, top_k):
             pairs.append((left.entity_id, int(pos)))
             if max_pairs and len(pairs) >= max_pairs:
                 return pairs
