@@ -49,7 +49,11 @@ def transliterate_text(text: str) -> str:
     """Converts non-Latin scripts (Devanagari, Tamil, Accents) to clean ASCII/Latin text."""
     if not isinstance(text, str) or not text.strip():
         return ""
-    
+
+    # Fast path: NFD, Mn-stripping and unidecode are all identities on ASCII input.
+    if text.isascii():
+        return text
+
     # Unicode Normalization (NFD -> ASCII)
     normalized = unicodedata.normalize("NFD", text)
     ascii_text = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
@@ -59,6 +63,26 @@ def transliterate_text(text: str) -> str:
         ascii_text = unidecode(ascii_text)
         
     return ascii_text
+
+
+def _compile_guarded(mapping):
+    """Pre-compiles patterns with a literal guard; a pattern cannot match unless its guard substring is present."""
+    guards = {
+        r"\bprivate limited\b": "private limited",
+        r"\bpvt\.?\s*ltd\.?\b": "pvt",
+        r"\bflr?\.?\b": "fl",
+    }
+    compiled = []
+    for pattern, replacement in mapping.items():
+        guard = guards.get(pattern) or re.match(r"\\b(\w+)", pattern).group(1)
+        compiled.append((guard, re.compile(pattern), replacement))
+    return compiled
+
+
+_LEGAL_SUFFIX_RULES = _compile_guarded(LEGAL_SUFFIXES)
+_ADDRESS_RULES = _compile_guarded(ADDRESS_ABBREVIATIONS)
+_NON_WORD_RE = re.compile(r"[^\w\s]")
+_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def clean_text(text: str) -> str:
@@ -73,18 +97,20 @@ def clean_text(text: str) -> str:
     text = text.lower()
     
     # 3. Standardize Legal Suffixes
-    for pattern, replacement in LEGAL_SUFFIXES.items():
-        text = re.sub(pattern, replacement, text)
-        
+    for guard, pattern, replacement in _LEGAL_SUFFIX_RULES:
+        if guard in text:
+            text = pattern.sub(replacement, text)
+
     # 4. Standardize Address Terms
-    for pattern, replacement in ADDRESS_ABBREVIATIONS.items():
-        text = re.sub(pattern, replacement, text)
-        
+    for guard, pattern, replacement in _ADDRESS_RULES:
+        if guard in text:
+            text = pattern.sub(replacement, text)
+
     # 5. Strip special characters except alphanumeric and whitespace
-    text = re.sub(r"[^\w\s]", " ", text)
-    
+    text = _NON_WORD_RE.sub(" ", text)
+
     # 6. Normalize whitespace
-    text = re.sub(r"\s+", " ", text).strip()
+    text = _WHITESPACE_RE.sub(" ", text).strip()
     
     return text
 
